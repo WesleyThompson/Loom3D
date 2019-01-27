@@ -1,0 +1,2 @@
+1) Import your image.
+	- In the image's advanced Texture Import Settings and enable Read/Write.
