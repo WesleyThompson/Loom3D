@@ -1,5 +1,7 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class Loom : MonoBehaviour {
@@ -10,8 +12,17 @@ public class Loom : MonoBehaviour {
     [Tooltip("How big, in world-space units, each segment is")]
     public float segmentSize;
 
-    private float[,] imageSegments;
+    private ImageSegment[,] imageSegments;
     private List<Vector3> vertices;
+    private List<int> triangles;
+    private Mesh mesh;
+
+    private struct ImageSegment
+    {
+        public float alphaSum;
+        //In order: bottom left, top left, bottom right, and top right
+        public int[] vectorIndices;
+    }
 
     private void Awake()
     {
@@ -21,6 +32,32 @@ public class Loom : MonoBehaviour {
         Debug.Log(CalculateSegmentDimensions(segmentResolution, texture));
         CalculateImageSegments(ref imageSegments, segmentResolution, texture);
         CalculateVertices(ref vertices, imageSegments, segmentSize);
+        CalculateTriangles(imageSegments);
+
+        GetComponent<MeshFilter>().mesh = mesh = new Mesh();
+        mesh.name = "meshByLoom";
+        mesh.vertices = vertices.ToArray();
+        mesh.triangles = triangles.ToArray();
+        mesh.RecalculateNormals();
+    }
+
+    private void CalculateTriangles(ImageSegment[,] imageSegments)
+    {
+        triangles = new List<int>();
+
+        foreach(ImageSegment imageSegment in imageSegments)
+        {
+            if(imageSegment.alphaSum > 0)
+            {
+                int[] indices = imageSegment.vectorIndices;
+                triangles.Add(indices[0]);
+                triangles.Add(indices[1]);
+                triangles.Add(indices[2]);
+                triangles.Add(indices[2]);
+                triangles.Add(indices[1]);
+                triangles.Add(indices[3]);
+            }
+        }
     }
 
     private void OnDrawGizmos()
@@ -62,10 +99,10 @@ public class Loom : MonoBehaviour {
         return dimensions;
     }
 
-    private void CalculateImageSegments(ref float[,] imageSegments, int segmentResolution, Texture2D texture)
+    private void CalculateImageSegments(ref ImageSegment[,] imageSegments, int segmentResolution, Texture2D texture)
     {
         Vector2 segDimensions = CalculateSegmentDimensions(segmentResolution, texture);
-        imageSegments = new float[(int)segDimensions.x, (int)segDimensions.y];
+        imageSegments = new ImageSegment[(int)segDimensions.x, (int)segDimensions.y];
 
         //Texture coordinates start at lower left corner.
         for(int i = 0; i < texture.width; i++)
@@ -73,21 +110,21 @@ public class Loom : MonoBehaviour {
             for(int j = 0; j < texture.height; j++)
             {
                 float alpha = texture.GetPixel(i, j).a;
-                imageSegments[i / segmentResolution, j / segmentResolution] += alpha;
+                imageSegments[i / segmentResolution, j / segmentResolution].alphaSum += alpha;
             }
         }
 
     }
 
-    private void CalculateVertices(ref List<Vector3> vertices, float[,] imageSegments, float segmentSize)
+    private void CalculateVertices(ref List<Vector3> vertices, ImageSegment[,] imageSegments, float segmentSize)
     {
         vertices = new List<Vector3>();
 
-        for(int i = 0; i < imageSegments.GetLength(0); i++)
+        for (int i = 0; i < imageSegments.GetLength(0); i++)
         {
-            for(int j = 0; j < imageSegments.GetLength(1); j++)
+            for (int j = 0; j < imageSegments.GetLength(1); j++)
             {
-                if(imageSegments[i,j] > 0)
+                if (imageSegments[i, j].alphaSum > 0)
                 {
                     //Create 4 vectors for our square segment
                     float rCoord = (i + 1) * segmentSize;
@@ -101,40 +138,75 @@ public class Loom : MonoBehaviour {
                     bool bL = false;
                     bool bR = false;
                     bool tL = false;
-                    foreach(Vector3 v in vertices)
+                    foreach (Vector3 v in vertices)
                     {
-                        if(!bL && v == bottomLeft)
+                        if (!bL && v == bottomLeft)
                         {
                             bL = true;
                         }
-                        else if(!bR && v == bottomRight)
+                        else if (!bR && v == bottomRight)
                         {
                             bR = true;
                         }
-                        else if(!tL && v == topLeft)
+                        else if (!tL && v == topLeft)
                         {
                             tL = true;
                         }
 
-                        if(bL && bR && tL)
+                        if (bL && bR && tL)
                         {
                             break;
                         }
                     }
                     //If not add it
-                    vertices.Add(topRight);
-                    if(!bL)
+                    //TODO fix all this bs
+                    int[] vertIndices = new int[4];
+                    if (!bL)
                     {
+                        vertIndices[0] = vertices.Count;
                         vertices.Add(bottomLeft);
                     }
-                    if(!bR)
+                    else
                     {
-                        vertices.Add(bottomRight);
+                        //This value shouldn't ever be < 0
+                        int value = vertices.IndexOf(bottomLeft);
+                        if(value >= 0)
+                        {
+                            vertIndices[0] = value;
+                        }
                     }
-                    if(!tL)
+                    if (!tL)
                     {
+                        vertIndices[1] = vertices.Count;
                         vertices.Add(topLeft);
                     }
+                    else
+                    {
+                        //This value shouldn't ever be < 0
+                        int value = vertices.IndexOf(topLeft);
+                        if (value >= 0)
+                        {
+                            vertIndices[1] = value;
+                        }
+                    }
+                    if (!bR)
+                    {
+                        vertIndices[2] = vertices.Count;
+                        vertices.Add(bottomRight);
+                    }
+                    else
+                    {
+                        //This value shouldn't ever be < 0
+                        int value = vertices.IndexOf(bottomRight);
+                        if (value >= 0)
+                        {
+                            vertIndices[2] = value;
+                        }
+                    }
+                    vertIndices[3] = vertices.Count;
+                    vertices.Add(topRight);
+
+                    imageSegments[i, j].vectorIndices = vertIndices;
                 }
             }
         }
