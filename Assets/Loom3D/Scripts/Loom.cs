@@ -4,10 +4,11 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
+//TODO add 2 sided option
 public class Loom : MonoBehaviour {
 
     public Texture2D texture;
-    [Range(1,16)]
+    [Range(1,256)]
     public int segmentResolution;
     [Tooltip("How big, in world-space units, each segment is")]
     public float segmentSize;
@@ -16,6 +17,7 @@ public class Loom : MonoBehaviour {
     private List<Vector3> vertices;
     private List<int> triangles;
     private Mesh mesh;
+    private List<Vector2> uv;
 
     private struct ImageSegment
     {
@@ -32,16 +34,35 @@ public class Loom : MonoBehaviour {
         Debug.Log(CalculateSegmentDimensions(segmentResolution, texture));
         CalculateImageSegments(ref imageSegments, segmentResolution, texture);
         CalculateVertices(ref vertices, imageSegments, segmentSize);
-        CalculateTriangles(imageSegments);
+        CalculateTriangles(ref imageSegments);
+        CalculateUVs(ref uv, vertices);
 
         GetComponent<MeshFilter>().mesh = mesh = new Mesh();
         mesh.name = "meshByLoom";
         mesh.vertices = vertices.ToArray();
         mesh.triangles = triangles.ToArray();
-        mesh.RecalculateNormals();
+        mesh.uv = uv.ToArray();
+        mesh.RecalculateNormals(); //This may not work later. Migh have to assign normals per vertex
     }
 
-    private void CalculateTriangles(ImageSegment[,] imageSegments)
+    private void CalculateUVs(ref List<Vector2> uv, List<Vector3> vertices)
+    {
+        uv = new List<Vector2>();
+        //TODO this calculation will change when segments can have variable length
+        float meshWidth = imageSegments.Length * segmentSize;
+        float meshHeight = imageSegments.LongLength * segmentSize;
+
+        //To allow us to have no tiling on the material
+        float tilingWidthMultiplier = (texture.width / segmentResolution);
+        float tilingHeightMultiplier = (texture.height / segmentResolution);
+
+        foreach (Vector3 vert in vertices)
+        {
+            uv.Add(new Vector2((vert.x / meshWidth) * tilingWidthMultiplier, (vert.y / meshHeight) * tilingHeightMultiplier));
+        }
+    }
+
+    private void CalculateTriangles(ref ImageSegment[,] imageSegments)
     {
         triangles = new List<int>();
 
@@ -56,22 +77,6 @@ public class Loom : MonoBehaviour {
                 triangles.Add(indices[2]);
                 triangles.Add(indices[1]);
                 triangles.Add(indices[3]);
-            }
-        }
-    }
-
-    private void OnDrawGizmos()
-    {
-        if(vertices == null)
-        {
-            return;
-        }
-        else
-        {
-            Gizmos.color = Color.black;
-            for (int i = 0; i < vertices.Count; i++)
-            {
-                Gizmos.DrawSphere(vertices[i], 0.05f);
             }
         }
     }
