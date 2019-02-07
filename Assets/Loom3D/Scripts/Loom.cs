@@ -2,8 +2,11 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEditor;
 using UnityEngine;
 
+//TODO refactor
+//TODO add saving object
 //TODO add 2 sided option
 public class Loom : MonoBehaviour {
 
@@ -12,15 +15,18 @@ public class Loom : MonoBehaviour {
     public int segmentResolution;
     [Tooltip("How big, in world-space units, each segment is")]
     public float segmentSize;
+    public string meshName;
+    public bool twoSided;
 
     private ImageSegment[,] imageSegments;
     private List<Vector3> vertices;
     private List<int> triangles;
-    private Mesh mesh;
+    public Mesh mesh;
     private List<Vector2> uv;
 
     //Shader settings
     private string shaderType = "Standard";
+    private Material material;
 
     private struct ImageSegment
     {
@@ -38,21 +44,24 @@ public class Loom : MonoBehaviour {
 
         MeshFilter meshFilter = GetComponent<MeshFilter>();
         meshFilter.mesh = mesh = new Mesh();
-        mesh.name = "meshByLoom";
+        mesh.name = meshName;
         mesh.vertices = vertices.ToArray();
         mesh.triangles = triangles.ToArray();
         mesh.uv = uv.ToArray();
         mesh.RecalculateNormals(); //This may not work later. Migh have to assign normals per vertex
 
         //Setup material, order is important
-        Material material = new Material(Shader.Find(shaderType));
-        material.name = "Material Name Here";
+        material = new Material(Shader.Find(shaderType));
+        material.name = meshName + "_mat";
         material.SetTexture("_MainTex", texture);
         material.EnableKeyword("_ALPHATEST_ON");
         material.SetFloat("_Mode", 1); //Set render mode to CutOut
         
         MeshRenderer meshRenderer = this.GetComponent<MeshRenderer>();
         meshRenderer.material = material;
+
+        Cloth cloth = gameObject.AddComponent<Cloth>();
+        cloth.useGravity = false;
     }
 
     private void CalculateUVs(ref List<Vector2> uv, List<Vector3> vertices)
@@ -63,8 +72,8 @@ public class Loom : MonoBehaviour {
         float meshHeight = imageSegments.LongLength * segmentSize;
 
         //To allow us to have no tiling on the material
-        float tilingWidthMultiplier = (texture.width / segmentResolution);
-        float tilingHeightMultiplier = (texture.height / segmentResolution);
+        float tilingWidthMultiplier = (texture.height / segmentResolution);
+        float tilingHeightMultiplier = (texture.width / segmentResolution);
 
         foreach (Vector3 vert in vertices)
         {
@@ -89,6 +98,20 @@ public class Loom : MonoBehaviour {
                 triangles.Add(indices[3]);
             }
         }
+    }
+
+    [ContextMenu("Save Mesh+Material")]
+    public void SaveMeshNMaterial()
+    {
+        SaveMeshNMaterial(mesh, material);
+    }
+
+    private void SaveMeshNMaterial(Mesh mesh, Material material)
+    {
+        //TODO This doesn't work need to have the whole object I think
+        AssetDatabase.CreateAsset(mesh, "Assets" + "/" + meshName + ".fbx");
+        //AssetDatabase.CreateAsset(material, Application.dataPath);
+        AssetDatabase.SaveAssets();
     }
 
     /// <summary>

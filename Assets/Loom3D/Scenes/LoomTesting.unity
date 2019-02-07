@@ -280,9 +280,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3812eb48e5002b04daa24f8163cb9b7d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  texture: {fileID: 2800000, guid: bc75d74472dfb714ba1d965c888fa27d, type: 3}
+  texture: {fileID: 2800000, guid: a2f1cf7f3c49fa4488210e72311529ba, type: 3}
   segmentResolution: 64
   segmentSize: 0.1
+  meshName: nepal
+  twoSided: 1
+  mesh: {fileID: 0}
 --- !u!4 &1492406721
 Transform:
   m_ObjectHideFlags: 0
