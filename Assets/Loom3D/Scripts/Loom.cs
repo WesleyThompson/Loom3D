@@ -19,6 +19,9 @@ public class Loom : MonoBehaviour {
     private Mesh mesh;
     private List<Vector2> uv;
 
+    //Shader settings
+    private string shaderType = "Standard";
+
     private struct ImageSegment
     {
         public float alphaSum;
@@ -28,21 +31,28 @@ public class Loom : MonoBehaviour {
 
     private void Awake()
     {
-        Debug.Log(texture.name + ":" + texture.width + "x" + texture.height);
-        Debug.Log(texture.GetPixel(0, 0).a);
-
-        Debug.Log(CalculateSegmentDimensions(segmentResolution, texture));
         CalculateImageSegments(ref imageSegments, segmentResolution, texture);
         CalculateVertices(ref vertices, imageSegments, segmentSize);
         CalculateTriangles(ref imageSegments);
         CalculateUVs(ref uv, vertices);
 
-        GetComponent<MeshFilter>().mesh = mesh = new Mesh();
+        MeshFilter meshFilter = GetComponent<MeshFilter>();
+        meshFilter.mesh = mesh = new Mesh();
         mesh.name = "meshByLoom";
         mesh.vertices = vertices.ToArray();
         mesh.triangles = triangles.ToArray();
         mesh.uv = uv.ToArray();
         mesh.RecalculateNormals(); //This may not work later. Migh have to assign normals per vertex
+
+        //Setup material, order is important
+        Material material = new Material(Shader.Find(shaderType));
+        material.name = "Material Name Here";
+        material.SetTexture("_MainTex", texture);
+        material.EnableKeyword("_ALPHATEST_ON");
+        material.SetFloat("_Mode", 1); //Set render mode to CutOut
+        
+        MeshRenderer meshRenderer = this.GetComponent<MeshRenderer>();
+        meshRenderer.material = material;
     }
 
     private void CalculateUVs(ref List<Vector2> uv, List<Vector3> vertices)
