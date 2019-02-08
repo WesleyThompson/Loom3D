@@ -5,6 +5,7 @@
 [Bb]uilds/
 Assets/AssetStoreTools*
 Assets/Ciconia Studio*
+Assets/Reference*
 
 # Visual Studio cache directory
 /.vs/
