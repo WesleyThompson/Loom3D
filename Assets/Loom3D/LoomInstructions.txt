@@ -1,2 +1,4 @@
 1) Import your image.
 	- In the image's advanced Texture Import Settings and enable Read/Write.
+2) Click Assets>Loom3D>GenerateClothFromTexture to open the Loom3D Wizard.
+3) Add your image texture and click generate.
